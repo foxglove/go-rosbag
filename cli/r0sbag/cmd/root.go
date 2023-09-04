@@ -58,7 +58,7 @@ func dief(msg string, args ...interface{}) {
 var cfgFile string
 
 var rootCmd = &cobra.Command{
-	Use:   "bag",
+	Use:   "r0sbag",
 	Short: "A brief description of your application",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		profileCloser = makeProfileCloser(pprofProfile)
