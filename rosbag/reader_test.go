@@ -298,15 +298,33 @@ func TestWrittenBagIsReadable(t *testing.T) {
 	}
 	assert.Nil(t, writer.Close())
 
-	reader, err := NewReader(bytes.NewReader(buf.Bytes()))
-	assert.Nil(t, err)
-	it, err := reader.Messages()
-	assert.Nil(t, err)
-	messageCount := 0
-	for it.More() {
-		_, _, err := it.Next()
-		assert.Nil(t, err)
-		messageCount++
+	cases := []struct {
+		assertion string
+		linear    bool
+	}{
+		{
+			"linear",
+			true,
+		},
+		{
+			"indexed",
+			false,
+		},
 	}
-	assert.Equal(t, size, messageCount)
+
+	for _, c := range cases {
+		t.Run(c.assertion, func(t *testing.T) {
+			reader, err := NewReader(bytes.NewReader(buf.Bytes()))
+			assert.Nil(t, err)
+			it, err := reader.Messages(ScanLinear(c.linear))
+			assert.Nil(t, err)
+			messageCount := 0
+			for it.More() {
+				_, _, err := it.Next()
+				assert.Nil(t, err)
+				messageCount++
+			}
+			assert.Equal(t, size, messageCount)
+		})
+	}
 }

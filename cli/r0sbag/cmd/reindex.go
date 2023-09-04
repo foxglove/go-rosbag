@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var compression string
+var (
+	compression string
+	force       bool
+)
 
 // rewrite messages from reader to writer. Does not close writer when done, to
 // finalize indexes - that is the responsibility of the caller.
@@ -29,6 +32,23 @@ func rewrite(w *rosbag.Writer, r io.ReadSeeker) error {
 	})
 }
 
+func fileIsIndexed(rs io.ReadSeeker) bool {
+	currentPos, err := rs.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return false
+	}
+	defer rs.Seek(currentPos, io.SeekStart)
+	reader, err := rosbag.NewReader(rs)
+	if err != nil {
+		return false
+	}
+	_, err = reader.Info()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 var reindexCmd = &cobra.Command{
 	Use:   "reindex [file]",
 	Short: "Reindex a bag file and physically sort the messages",
@@ -42,6 +62,12 @@ var reindexCmd = &cobra.Command{
 			dief("failed to open file: %s", err)
 		}
 		defer f.Close()
+
+		// if the file is already indexed
+		if !force && fileIsIndexed(f) {
+			fmt.Printf("%s is already indexed\n", filename)
+			return
+		}
 
 		tmpfile, err := os.CreateTemp("", fmt.Sprintf("%s.reindex.temp", filename))
 		if err != nil {
@@ -94,4 +120,5 @@ var reindexCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(reindexCmd)
 	reindexCmd.PersistentFlags().StringVarP(&compression, "compression", "", "lz4", "output compression algorithm")
+	reindexCmd.PersistentFlags().BoolVarP(&force, "force", "f", false, "force reindexing of already-indexed bags")
 }
