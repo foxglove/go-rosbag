@@ -2,6 +2,7 @@ package rosbag
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"container/heap"
 	"encoding/binary"
 	"fmt"
@@ -85,7 +86,10 @@ func (it *indexedIterator) Next() (*Connection, *Message, error) {
 					return nil, nil, fmt.Errorf("decompression failure: %w", err)
 				}
 			case CompressionBZ2:
-				return nil, nil, ErrNotImplemented
+				bzw := bzip2.NewReader(bytes.NewReader(it.compressedChunk[:compressedLen]))
+				if _, err := io.ReadFull(bzw, decompressedChunk); err != nil {
+					return nil, nil, fmt.Errorf("decompression failure: %w", err)
+				}
 			default:
 				return nil, nil, ErrUnsupportedCompression{compression}
 			}

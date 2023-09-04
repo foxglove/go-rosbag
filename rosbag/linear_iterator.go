@@ -3,6 +3,7 @@ package rosbag
 import (
 	"bufio"
 	"bytes"
+	"compress/bzip2"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -25,7 +26,8 @@ type linearIterator struct {
 	baseReader         io.Reader
 	connections        map[uint32]*Connection
 
-	buffer *buffer
+	buffer    *buffer
+	lz4reader *lz4.Reader
 }
 
 func newLinearIterator(r io.Reader) *linearIterator {
@@ -35,6 +37,7 @@ func newLinearIterator(r io.Reader) *linearIterator {
 		baseReader:  r,
 		connections: make(map[uint32]*Connection),
 		inChunk:     false,
+		lz4reader:   lz4.NewReader(nil),
 	}
 }
 
@@ -81,16 +84,17 @@ func (it *linearIterator) Next() (*Connection, *Message, error) {
 			it.currentChunkLength = int64(u32(size))
 			chunkData := record[4+headerLen+4:]
 			switch string(compression) {
-			case "none":
+			case CompressionNone:
 				it.reader.Reset(bytes.NewReader(chunkData))
 				it.inChunk = true
 				continue
-			case "lz4":
-				it.reader.Reset(lz4.NewReader(bytes.NewReader(chunkData)))
+			case CompressionLZ4:
+				it.lz4reader.Reset(bytes.NewReader(chunkData))
+				it.reader.Reset(it.lz4reader)
 				it.inChunk = true
 				continue
-			case "bz4":
-				return nil, nil, ErrNotImplemented
+			case CompressionBZ2:
+				it.reader.Reset(bzip2.NewReader(bytes.NewReader(chunkData)))
 			default:
 				return nil, nil, fmt.Errorf("unsupported compression: %s", compression)
 			}
