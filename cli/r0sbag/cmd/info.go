@@ -16,6 +16,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	displayCaveats bool
+)
+
 const (
 	infoLayout = "Jan 02 2006 15:04:05.00"
 )
@@ -61,7 +65,14 @@ func formatTable(w io.Writer, rows [][]string, align int) {
 	tw.Render()
 }
 
-func printInfo(w io.Writer, rs io.ReadSeeker, path string, size int64, info *rosbag.Info) {
+func printInfo(
+	w io.Writer,
+	rs io.ReadSeeker,
+	path string,
+	size int64,
+	displayCaveats bool,
+	info *rosbag.Info,
+) {
 	start := int64(info.MessageStartTime)
 	end := int64(info.MessageEndTime)
 	duration := time.Duration(end - start)
@@ -136,19 +147,26 @@ func printInfo(w io.Writer, rs io.ReadSeeker, path string, size int64, info *ros
 		compressedRate := float64(compressedVolume) / duration.Seconds()
 		compressionPct := 100 * float64(compressedVolume) / float64(uncompressedVolume)
 
+		maybeCaveat := func(s string) string {
+			if displayCaveats {
+				return "*" + s
+			}
+			return s
+		}
+
 		header = append(header, [][]string{
-			{"compression:", fmt.Sprintf(
+			{maybeCaveat("compression") + ":", fmt.Sprintf(
 				"%s [%d/%d chunks; %.2f%%]",
 				compression,
 				chunkCount, chunkCount,
 				compressionPct,
 			)},
-			{"uncompressed:", fmt.Sprintf(
+			{maybeCaveat("uncompressed") + ":", fmt.Sprintf(
 				"%s @ %s/s",
 				humanBytes(uncompressedVolume),
 				humanBytes(int64(uncompressedRate)),
 			)},
-			{"compressed:", fmt.Sprintf(
+			{maybeCaveat("compressed") + ":", fmt.Sprintf(
 				"%s @ %s/s (%.2f%%)",
 				humanBytes(compressedVolume),
 				humanBytes(int64(compressedRate)),
@@ -207,6 +225,10 @@ func printInfo(w io.Writer, rs io.ReadSeeker, path string, size int64, info *ros
 		{"topics:", strings.TrimRight(topicsTable.String(), "\n")},
 	}
 	formatTable(w, tables, tablewriter.ALIGN_LEFT)
+
+	if displayCaveats {
+		fmt.Fprintf(w, "* estimated\n")
+	}
 }
 
 var infoCmd = &cobra.Command{
@@ -236,10 +258,11 @@ var infoCmd = &cobra.Command{
 			dief("failed to stat %s: %v", filename, err)
 		}
 
-		printInfo(os.Stdout, f, filename, fi.Size(), info)
+		printInfo(os.Stdout, f, filename, fi.Size(), displayCaveats, info)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(infoCmd)
+	infoCmd.PersistentFlags().BoolVarP(&displayCaveats, "display-caveats", "", false, "mark estimated fields")
 }
