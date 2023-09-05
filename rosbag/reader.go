@@ -172,8 +172,7 @@ func (r *Reader) Info() (*Info, error) {
 // linear reads, but if passed a read seeker can make use of the index.
 func NewReader(r io.Reader) (*Reader, error) {
 	buf := make([]byte, len(Magic))
-	_, err := io.ReadFull(r, buf)
-	if err != nil {
+	if _, err := io.ReadFull(r, buf); err != nil {
 		return nil, fmt.Errorf("failed to read magic bytes: %w", err)
 	}
 	if !bytes.Equal(buf, Magic) {

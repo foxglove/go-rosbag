@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testBagIsReadable(t *testing.T, rs io.ReadSeeker) {
+func testBagIsReadable(t *testing.T, rs io.Reader) {
 	reader, err := NewReader(rs)
 	assert.Nil(t, err)
 	it, err := reader.Messages()

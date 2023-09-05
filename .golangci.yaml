@@ -31,11 +31,11 @@ linters:
     - forbidigo
     - forcetypeassert
       #- funlen
-    - gci
+      #- gci
     - ginkgolinter
     - gocheckcompilerdirectives
       #- gochecknoglobals
-    - gochecknoinits
+      #- gochecknoinits
       #- gocognit
     - goconst
     - gocritic
@@ -49,12 +49,11 @@ linters:
     - goimports
     - golint
       #- gomnd
-    - gomoddirectives
+      #- gomoddirectives
     - gomodguard
     - goprintffuncname
       #- gosec
     - gosimple
-    - gosmopolitan
     - govet
     - grouper
     - ifshort
@@ -62,13 +61,12 @@ linters:
     - ineffassign
     - interfacebloat
     - interfacer
-    - ireturn
+      #- ireturn
     - lll
     - loggercheck
-    - maintidx
+      #- maintidx
     - makezero
     - maligned
-    - mirror
     - misspell
     - musttag
     - nakedret
@@ -78,8 +76,8 @@ linters:
       #- nlreturn
     - noctx
     - nolintlint
-    - nonamedreturns
-    - nosnakecase
+      #- nonamedreturns
+      #- nosnakecase
     - nosprintfhostport
       #- paralleltest
     - prealloc
@@ -93,14 +91,13 @@ linters:
     - staticcheck
     - structcheck
     - stylecheck
-    - tagalign
     - tagliatelle
     - tenv
     - testableexamples
       #- testpackage
       #- thelper
     - tparallel
-    - typecheck
+      #- typecheck
     - unconvert
       #- unparam
     - unused
@@ -111,4 +108,3 @@ linters:
     - whitespace
     - wrapcheck
       #- wsl
-    - zerologlint

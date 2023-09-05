@@ -102,7 +102,7 @@ func (t *JSONTranscoder) recordFromFields(fields []Field) (converter, error) {
 			case "byte":
 				converter = t.uint8
 			default:
-				return nil, fmt.Errorf("unrecognized primitive %s", converterType)
+				return nil, ErrUnrecognizedPrimitive
 			}
 		}
 		if field.Type.IsArray {
@@ -149,157 +149,136 @@ func (t *JSONTranscoder) bool(w io.Writer, r io.Reader) error {
 			return fmt.Errorf("unable to write bool: %w", err)
 		}
 	default:
-		return fmt.Errorf("invalid bool: %d", t.buf[0])
+		return ErrInvalidBool
 	}
 	return nil
 }
 
 func (t *JSONTranscoder) int8(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:1])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:1]); err != nil {
+		return fmt.Errorf("failed to read int8: %w", err)
 	}
 	s := strconv.Itoa(int(t.buf[0]))
-	_, err = w.Write([]byte(s))
-	if err != nil {
-		return err
+	if _, err := w.Write([]byte(s)); err != nil {
+		return fmt.Errorf("failed to write int8: %w", err)
 	}
 	return nil
 }
 
 func (t *JSONTranscoder) uint8(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:1])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:1]); err != nil {
+		return fmt.Errorf("failed to read uint8: %w", err)
 	}
 	s := strconv.Itoa(int(t.buf[0]))
-	_, err = w.Write([]byte(s))
-	if err != nil {
-		return err
+	if _, err := w.Write([]byte(s)); err != nil {
+		return fmt.Errorf("failed to write uint8: %w", err)
 	}
 	return nil
 }
 
 func (t *JSONTranscoder) int16(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:2])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:2]); err != nil {
+		return fmt.Errorf("failed to read int16: %w", err)
 	}
 	x := int(binary.LittleEndian.Uint16(t.buf[:2]))
 	s := strconv.Itoa(x)
-	_, err = w.Write([]byte(s))
-	if err != nil {
-		return err
+	if _, err := w.Write([]byte(s)); err != nil {
+		return fmt.Errorf("failed to write int16: %w", err)
 	}
 	return nil
 }
 
 func (t *JSONTranscoder) string(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:4])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:4]); err != nil {
+		return fmt.Errorf("failed to read string length: %w", err)
 	}
 	length := binary.LittleEndian.Uint32(t.buf[:4])
 	if uint32(len(t.buf)) < length {
 		t.buf = make([]byte, length)
 	}
-	_, err = io.ReadFull(r, t.buf[:length])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:length]); err != nil {
+		return fmt.Errorf("failed to read string: %w", err)
 	}
-	_, err = w.Write([]byte(strconv.QuoteToASCII(string(t.buf[:length]))))
-	if err != nil {
-		return err
+	if _, err := w.Write([]byte(strconv.QuoteToASCII(string(t.buf[:length])))); err != nil {
+		return fmt.Errorf("failed to write string: %w", err)
 	}
 	return nil
 }
 
 func (t *JSONTranscoder) uint16(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:2])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:2]); err != nil {
+		return fmt.Errorf("failed to read uint16: %w", err)
 	}
 	x := int(binary.LittleEndian.Uint16(t.buf[:2]))
 	t.formattedNumber = strconv.AppendInt(t.formattedNumber, int64(x), 10)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted uint16: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
 }
 
 func (t *JSONTranscoder) int32(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:4])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:4]); err != nil {
+		return fmt.Errorf("failed to read int32: %w", err)
 	}
 	x := binary.LittleEndian.Uint32(t.buf[:4])
 	t.formattedNumber = strconv.AppendInt(t.formattedNumber, int64(x), 10)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted int32: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
 }
 
 func (t *JSONTranscoder) uint32(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:4])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:4]); err != nil {
+		return fmt.Errorf("failed to read uint32: %w", err)
 	}
 	x := binary.LittleEndian.Uint32(t.buf[:4])
 	t.formattedNumber = strconv.AppendInt(t.formattedNumber, int64(x), 10)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted uint32: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
 }
 
 func (t *JSONTranscoder) int64(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:8])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:8]); err != nil {
+		return fmt.Errorf("failed to read int64: %w", err)
 	}
 	x := binary.LittleEndian.Uint64(t.buf[:8])
 	t.formattedNumber = strconv.AppendInt(t.formattedNumber, int64(x), 10)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted int64: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
 }
 
 func (t *JSONTranscoder) uint64(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:4])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:4]); err != nil {
+		return fmt.Errorf("failed to read uint64: %w", err)
 	}
 	x := binary.LittleEndian.Uint64(t.buf[:8])
 	t.formattedNumber = strconv.AppendInt(t.formattedNumber, int64(x), 10)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted uint64: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
 }
 
 func (t *JSONTranscoder) float32(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:4])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:4]); err != nil {
+		return fmt.Errorf("failed to read float32: %w", err)
 	}
 	x := binary.LittleEndian.Uint32(t.buf[:4])
 	float := float64(math.Float32frombits(x))
 	t.formattedNumber = formatFloat(t.formattedNumber, float, 32)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted float32: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
@@ -323,16 +302,14 @@ func formatFloat(buf []byte, float float64, precision int) []byte {
 }
 
 func (t *JSONTranscoder) float64(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:8])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:8]); err != nil {
+		return fmt.Errorf("failed to read float64: %w", err)
 	}
 	x := binary.LittleEndian.Uint64(t.buf[:8])
 	float := math.Float64frombits(x)
 	t.formattedNumber = formatFloat(t.formattedNumber, float, 64)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted float64: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
@@ -344,7 +321,7 @@ func digits(n uint32) int {
 	}
 	count := 0
 	for n != 0 {
-		n = n / 10
+		n /= 10
 		count++
 	}
 	return count
@@ -361,32 +338,28 @@ func (t *JSONTranscoder) formatTime(secs uint32, nsecs uint32) {
 }
 
 func (t *JSONTranscoder) time(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:8])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:8]); err != nil {
+		return fmt.Errorf("failed to read time: %w", err)
 	}
 	secs := binary.LittleEndian.Uint32(t.buf[:4])
 	nsecs := binary.LittleEndian.Uint32(t.buf[4:])
 	t.formatTime(secs, nsecs)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted time: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
 }
 
 func (t *JSONTranscoder) duration(w io.Writer, r io.Reader) error {
-	_, err := io.ReadFull(r, t.buf[:8])
-	if err != nil {
-		return err
+	if _, err := io.ReadFull(r, t.buf[:8]); err != nil {
+		return fmt.Errorf("failed to read duration: %w", err)
 	}
 	secs := binary.LittleEndian.Uint32(t.buf[:4])
 	nsecs := binary.LittleEndian.Uint32(t.buf[4:])
 	t.formatTime(secs, nsecs)
-	_, err = w.Write(t.formattedNumber)
-	if err != nil {
-		return err
+	if _, err := w.Write(t.formattedNumber); err != nil {
+		return fmt.Errorf("failed to write formatted duration: %w", err)
 	}
 	t.formattedNumber = t.formattedNumber[:0]
 	return nil
@@ -398,9 +371,8 @@ func (t *JSONTranscoder) array(items converter, fixedSize int, isBytes bool) con
 		if fixedSize > 0 {
 			arrayLength = uint32(fixedSize)
 		} else {
-			_, err := io.ReadFull(r, t.buf[:4])
-			if err != nil {
-				return err
+			if _, err := io.ReadFull(r, t.buf[:4]); err != nil {
+				return fmt.Errorf("failed to read array length: %w", err)
 			}
 			arrayLength = binary.LittleEndian.Uint32(t.buf[:4])
 		}
@@ -428,25 +400,21 @@ func (t *JSONTranscoder) array(items converter, fixedSize int, isBytes bool) con
 			return nil
 		}
 
-		_, err := w.Write([]byte("["))
-		if err != nil {
-			return err
+		if _, err := w.Write([]byte("[")); err != nil {
+			return fmt.Errorf("failed to write array start: %w", err)
 		}
 		for i := uint32(0); i < arrayLength; i++ {
 			if i > 0 {
-				_, err := w.Write([]byte(","))
-				if err != nil {
-					return err
+				if _, err := w.Write([]byte(",")); err != nil {
+					return fmt.Errorf("failed to write array separator: %w", err)
 				}
 			}
-			err := items(w, r)
-			if err != nil {
-				return err
+			if err := items(w, r); err != nil {
+				return fmt.Errorf("failed to transcode array item: %w", err)
 			}
 		}
-		_, err = w.Write([]byte("]"))
-		if err != nil {
-			return err
+		if _, err := w.Write([]byte("]")); err != nil {
+			return fmt.Errorf("failed to write array end: %w", err)
 		}
 		return nil
 	}
@@ -458,9 +426,8 @@ func (t *JSONTranscoder) record(fields []recordField) converter {
 	rightBracket := []byte("}")
 	buf := []byte{}
 	return func(w io.Writer, r io.Reader) error {
-		_, err := w.Write(leftBracket)
-		if err != nil {
-			return err
+		if _, err := w.Write(leftBracket); err != nil {
+			return fmt.Errorf("failed to open record: %w", err)
 		}
 		for i, field := range fields {
 			if i > 0 {
@@ -485,8 +452,7 @@ func (t *JSONTranscoder) record(fields []recordField) converter {
 				return fmt.Errorf("failed to convert field %s: %w", field.name, err)
 			}
 		}
-		_, err = w.Write(rightBracket)
-		if err != nil {
+		if _, err := w.Write(rightBracket); err != nil {
 			return fmt.Errorf("failed to close record: %w", err)
 		}
 		return nil

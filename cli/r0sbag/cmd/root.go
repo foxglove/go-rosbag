@@ -31,7 +31,10 @@ func makeProfileCloser(pprofProfile bool) func() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	pprof.StartCPUProfile(cpuprof)
+	err = pprof.StartCPUProfile(cpuprof)
+	if err != nil {
+		log.Fatal(err)
+	}
 	runtime.SetBlockProfileRate(100e6)
 	blockProfile, err := os.Create(block)
 	if err != nil {
@@ -41,10 +44,16 @@ func makeProfileCloser(pprofProfile bool) func() {
 		pprof.StopCPUProfile()
 		cpuprof.Close()
 
-		pprof.WriteHeapProfile(memprof)
+		err = pprof.WriteHeapProfile(memprof)
+		if err != nil {
+			log.Fatal(err)
+		}
 		memprof.Close()
 
-		pprof.Lookup("block").WriteTo(blockProfile, 0)
+		err = pprof.Lookup("block").WriteTo(blockProfile, 0)
+		if err != nil {
+			log.Fatal(err)
+		}
 		blockProfile.Close()
 		fmt.Fprintf(os.Stderr, "Wrote profiles to %s, %s, and %s\n", cpu, mem, block)
 	}

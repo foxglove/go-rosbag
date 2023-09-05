@@ -18,8 +18,8 @@ var (
 )
 
 // readIndexed reads the file in index order.
-func processMessages(f io.ReadSeeker, linear bool, callbacks ...func(*rosbag.Connection, *rosbag.Message) error) error {
-	reader, err := rosbag.NewReader(f)
+func processMessages(r io.Reader, linear bool, callbacks ...func(*rosbag.Connection, *rosbag.Message) error) error {
+	reader, err := rosbag.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("failed to construct reader: %w", err)
 	}
@@ -50,38 +50,39 @@ func writeMessage(
 ) error {
 	_, err := w.Write([]byte(`{"topic": "`))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write topic key: %w", err)
 	}
 	_, err = w.Write([]byte(topic))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write topic: %w", err)
 	}
 	_, err = w.Write([]byte(`", "time": `))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write time key: %w", err)
 	}
 	_, err = w.Write([]byte(fmt.Sprintf("%d", time)))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write time: %w", err)
 	}
 	_, err = w.Write([]byte(`, "data": `))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write data key: %w", err)
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write data: %w", err)
 	}
 	_, err = w.Write([]byte("}\n"))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write closing bracket: %w", err)
 	}
 	return nil
 }
 
 func simpleMessageHandler(conn *rosbag.Connection, msg *rosbag.Message) error {
 	displayLen := min(10, len(msg.Data))
-	fmt.Printf("%d %s [%s] %v...\n", msg.Time, conn.Topic, conn.Data.Type, msg.Data[:displayLen])
+	fmt.Fprintf(
+		os.Stdout, "%d %s [%s] %v...\n", msg.Time, conn.Topic, conn.Data.Type, msg.Data[:displayLen])
 	return nil
 }
 
@@ -98,14 +99,14 @@ func jsonMessageHandler(w io.Writer) messageHandler {
 			packageName := strings.Split(conn.Data.Type, "/")[0]
 			xcoder, err = ros1msg.NewJSONTranscoder(packageName, conn.Data.MessageDefinition)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to build json transcoder: %w", err)
 			}
 			transcoders[conn.Conn] = xcoder
 		}
 		rosdata.Reset(msg.Data)
 		err := xcoder.Transcode(jsondata, rosdata)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to transcode json record: %w", err)
 		}
 		err = writeMessage(
 			w,

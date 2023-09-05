@@ -12,10 +12,10 @@ import (
 var fieldMatcher = regexp.MustCompile(`([^ \t]+)[ \t]* [ \t]*([a-zA-Z][a-zA-Z0-9_]*)`)
 
 type Type struct {
-	BaseType  string
-	IsArray   bool
 	FixedSize int
+	IsArray   bool
 	IsRecord  bool
+	BaseType  string
 	Items     *Type
 	Fields    []Field
 }
@@ -49,7 +49,7 @@ func resolveDependentFields(
 		// must be a field
 		matches := fieldMatcher.FindStringSubmatch(line)
 		if len(matches) < 3 {
-			return nil, fmt.Errorf("malformed field on line %d: %s", i, line)
+			return nil, ErrMalformedField{i, line}
 		}
 		fieldType := matches[1]
 		fieldName := matches[2]
@@ -90,13 +90,13 @@ func resolveDependentFields(
 			case fieldType == "Header":
 				subdefinition, ok = dependencies["std_msgs/Header"]
 				if !ok {
-					return nil, fmt.Errorf("dependency Header not found")
+					return nil, ErrUnknownDependency{"Header"}
 				}
 			case !typeIsPresent && !typeIsQualified:
 				qualifiedType := fieldParentPackage + "/" + fieldType
 				subdefinition, ok = dependencies[qualifiedType]
 				if !ok {
-					return nil, fmt.Errorf("dependency %s not found", qualifiedType)
+					return nil, ErrUnknownDependency{qualifiedType}
 				}
 			}
 			recordFields, err = resolveDependentFields(

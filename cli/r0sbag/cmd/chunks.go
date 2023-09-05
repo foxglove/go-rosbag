@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// chunksCmd represents the chunks command
+// chunksCmd represents the chunks command.
 var chunksCmd = &cobra.Command{
 	Use: "chunks",
 	Run: func(cmd *cobra.Command, args []string) {

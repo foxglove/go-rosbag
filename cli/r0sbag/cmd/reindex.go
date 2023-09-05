@@ -16,17 +16,17 @@ var (
 
 // rewrite messages from reader to writer. Does not close writer when done, to
 // finalize indexes - that is the responsibility of the caller.
-func rewrite(w *rosbag.Writer, r io.ReadSeeker) error {
+func rewrite(w *rosbag.Writer, r io.Reader) error {
 	connections := make(map[uint32]bool)
 	return processMessages(r, true, func(conn *rosbag.Connection, msg *rosbag.Message) error {
 		if !connections[conn.Conn] {
 			if err := w.WriteConnection(conn); err != nil {
-				return err
+				return fmt.Errorf("failed to write message: %w", err)
 			}
 			connections[conn.Conn] = true
 		}
 		if err := w.WriteMessage(msg); err != nil {
-			return err
+			return fmt.Errorf("failed to write message: %w", err)
 		}
 		return nil
 	})
@@ -37,16 +37,18 @@ func fileIsIndexed(rs io.ReadSeeker) bool {
 	if err != nil {
 		return false
 	}
-	defer rs.Seek(currentPos, io.SeekStart)
+	defer func() {
+		_, err = rs.Seek(currentPos, io.SeekStart)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to seek back to original position: %s\n", err)
+		}
+	}()
 	reader, err := rosbag.NewReader(rs)
 	if err != nil {
 		return false
 	}
 	_, err = reader.Info()
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 var reindexCmd = &cobra.Command{
@@ -65,7 +67,7 @@ var reindexCmd = &cobra.Command{
 
 		// if the file is already indexed
 		if !force && fileIsIndexed(f) {
-			fmt.Printf("%s is already indexed\n", filename)
+			fmt.Fprintf(os.Stderr, "%s is already indexed\n", filename)
 			return
 		}
 
@@ -113,7 +115,7 @@ var reindexCmd = &cobra.Command{
 		if err != nil {
 			dief("failed to rename temp file: %s", err)
 		}
-		fmt.Printf("%s reindexed. Original file moved to %s.orig\n", filename, filename)
+		fmt.Fprintf(os.Stderr, "%s reindexed. Original file moved to %s.orig\n", filename, filename)
 	},
 }
 

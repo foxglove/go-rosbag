@@ -30,7 +30,7 @@ func digits(n int64) int {
 	}
 	count := 0
 	for n != 0 {
-		n = n / 10
+		n /= 10
 		count++
 	}
 	return count
@@ -41,7 +41,7 @@ func humanBytes(numBytes int64) string {
 	displayedValue := float64(numBytes)
 	prefixIndex := 0
 	for ; displayedValue > 1024 && prefixIndex < len(prefixes); prefixIndex++ {
-		displayedValue = displayedValue / 1024
+		displayedValue /= 1024
 	}
 	return fmt.Sprintf("%.1f %s", displayedValue, prefixes[prefixIndex])
 }
@@ -49,7 +49,7 @@ func humanBytes(numBytes int64) string {
 func formatDuration(d time.Duration) string {
 	scale := 100 * time.Second
 	for scale > d {
-		scale = scale / 10
+		scale /= 10
 	}
 	return d.Round(scale / 100).String()
 }
@@ -63,6 +63,85 @@ func formatTable(w io.Writer, rows [][]string, align int) {
 	tw.SetColumnSeparator("")
 	tw.AppendBulk(rows)
 	tw.Render()
+}
+
+func prepShadyEstimates(
+	rs io.ReadSeeker,
+	info *rosbag.Info,
+	fileSize int64,
+	duration *time.Duration,
+	displayCaveats bool,
+) ([][]string, error) {
+	var representativeChunk *rosbag.ChunkInfo
+	if chunkCount := len(info.ChunkInfos); chunkCount >= 3 {
+		representativeChunk = info.ChunkInfos[chunkCount-2]
+	} else {
+		representativeChunk = info.ChunkInfos[0]
+	}
+	_, err := rs.Seek(int64(representativeChunk.ChunkPos), io.SeekStart)
+	if err != nil {
+		return nil, fmt.Errorf("failed to seek to chunk: %w", err)
+	}
+	length := make([]byte, 4)
+	_, err = io.ReadFull(rs, length)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read chunk header length: %w", err)
+	}
+	chunkheader := make([]byte, binary.LittleEndian.Uint32(length))
+	_, err = io.ReadFull(rs, chunkheader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read chunk header: %w", err)
+	}
+	compressionHeader, err := rosbag.GetHeaderValue(chunkheader, "compression")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read compression: %w", err)
+	}
+	sizeHeader, err := rosbag.GetHeaderValue(chunkheader, "size")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read size: %w", err)
+	}
+	_, err = rs.Read(length)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read chunk length: %w", err)
+	}
+	compressedSize := binary.LittleEndian.Uint32(length)
+	chunkDecompressedSize := int(binary.LittleEndian.Uint32(sizeHeader))
+	compression := string(compressionHeader)
+	chunkCount := len(info.ChunkInfos)
+
+	// estimates
+	uncompressedVolume := int64(chunkCount) * int64(chunkDecompressedSize)
+	compressedVolume := min(int64(chunkCount)*int64(compressedSize), fileSize)
+	uncompressedRate := float64(uncompressedVolume) / duration.Seconds()
+	compressedRate := float64(compressedVolume) / duration.Seconds()
+	compressionPct := 100 * float64(compressedVolume) / float64(uncompressedVolume)
+
+	maybeCaveat := func(s string) string {
+		if displayCaveats {
+			return "*" + s
+		}
+		return s
+	}
+
+	return [][]string{
+		{maybeCaveat("compression") + ":", fmt.Sprintf(
+			"%s [%d/%d chunks; %.2f%%]",
+			compression,
+			chunkCount, chunkCount,
+			compressionPct,
+		)},
+		{maybeCaveat("uncompressed") + ":", fmt.Sprintf(
+			"%s @ %s/s",
+			humanBytes(uncompressedVolume),
+			humanBytes(int64(uncompressedRate)),
+		)},
+		{maybeCaveat("compressed") + ":", fmt.Sprintf(
+			"%s @ %s/s (%.2f%%)",
+			humanBytes(compressedVolume),
+			humanBytes(int64(compressedRate)),
+			compressionPct,
+		)},
+	}, nil
 }
 
 func printInfo(
@@ -101,80 +180,13 @@ func printInfo(
 		So, if we have at least three, take the second to last and if we
 		have fewer than three, take the first.
 	*/
-
 	if chunkCount := len(info.ChunkInfos); chunkCount > 0 {
-		var representativeChunk *rosbag.ChunkInfo
-		if chunkCount >= 3 {
-			representativeChunk = info.ChunkInfos[chunkCount-2]
-		} else {
-			representativeChunk = info.ChunkInfos[0]
-		}
-		_, err := rs.Seek(int64(representativeChunk.ChunkPos), io.SeekStart)
+		estimates, err := prepShadyEstimates(rs, info, size, &duration, displayCaveats)
 		if err != nil {
-			dief("failed to seek to chunk: %v", err)
+			dief("failed to prep estimates: %v", err)
 		}
-		length := make([]byte, 4)
-		_, err = io.ReadFull(rs, length)
-		if err != nil {
-			dief("failed to read chunk header length: %v", err)
-		}
-		chunkheader := make([]byte, binary.LittleEndian.Uint32(length))
-		_, err = io.ReadFull(rs, chunkheader)
-		if err != nil {
-			dief("failed to read chunk header: %v", err)
-		}
-		compressionHeader, err := rosbag.GetHeaderValue(chunkheader, "compression")
-		if err != nil {
-			dief("failed to read compression: %s", err)
-		}
-		sizeHeader, err := rosbag.GetHeaderValue(chunkheader, "size")
-		if err != nil {
-			dief("failed to read size: %s", err)
-		}
-		_, err = rs.Read(length)
-		if err != nil {
-			dief("failed to read chunk length: %v", err)
-		}
-		compressedSize := binary.LittleEndian.Uint32(length)
-		chunkDecompressedSize := int(binary.LittleEndian.Uint32(sizeHeader))
-		compression := string(compressionHeader)
-		chunkCount := len(info.ChunkInfos)
-
-		// estimates
-		uncompressedVolume := int64(chunkCount) * int64(chunkDecompressedSize)
-		compressedVolume := min(int64(chunkCount)*int64(compressedSize), size)
-		uncompressedRate := float64(uncompressedVolume) / duration.Seconds()
-		compressedRate := float64(compressedVolume) / duration.Seconds()
-		compressionPct := 100 * float64(compressedVolume) / float64(uncompressedVolume)
-
-		maybeCaveat := func(s string) string {
-			if displayCaveats {
-				return "*" + s
-			}
-			return s
-		}
-
-		header = append(header, [][]string{
-			{maybeCaveat("compression") + ":", fmt.Sprintf(
-				"%s [%d/%d chunks; %.2f%%]",
-				compression,
-				chunkCount, chunkCount,
-				compressionPct,
-			)},
-			{maybeCaveat("uncompressed") + ":", fmt.Sprintf(
-				"%s @ %s/s",
-				humanBytes(uncompressedVolume),
-				humanBytes(int64(uncompressedRate)),
-			)},
-			{maybeCaveat("compressed") + ":", fmt.Sprintf(
-				"%s @ %s/s (%.2f%%)",
-				humanBytes(compressedVolume),
-				humanBytes(int64(compressedRate)),
-				compressionPct,
-			)},
-		}...)
+		header = append(header, estimates...)
 	}
-
 	/*
 		end trickery
 	*/

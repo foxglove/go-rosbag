@@ -24,6 +24,8 @@ var (
 	ErrMalformedHeader = errors.New("malformed header")
 	// ErrUnseekableReader indicates a reader is not seekable.
 	ErrUnseekableReader = errors.New("unseekable reader")
+	// ErrInvalidBool indicates a bool value was not 0 or 1.
+	ErrInvalidBool = errors.New("invalid bool")
 )
 
 // ErrUnsupportedCompression indicates a chunk was encountered with an

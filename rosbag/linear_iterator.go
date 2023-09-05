@@ -6,7 +6,6 @@ import (
 	"compress/bzip2"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/pierrec/lz4/v4"
@@ -96,7 +95,7 @@ func (it *linearIterator) Next() (*Connection, *Message, error) {
 			case CompressionBZ2:
 				it.reader.Reset(bzip2.NewReader(bytes.NewReader(chunkData)))
 			default:
-				return nil, nil, fmt.Errorf("unsupported compression: %s", compression)
+				return nil, nil, ErrUnsupportedCompression{string(compression)}
 			}
 		case OpMessageData:
 			msg, err := ParseMessage(record)
