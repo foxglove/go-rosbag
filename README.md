@@ -86,8 +86,3 @@ for it.More() {
 }
 
 ```
-
-### CLI tool
-
-The `cli` directory contains the `r0sbag` CLI tool. It is primarily intended
-for validation of the library.
