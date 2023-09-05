@@ -42,53 +42,37 @@ func processMessages(f io.ReadSeeker, linear bool, callbacks ...func(*rosbag.Con
 	return nil
 }
 
-type jsonOutputWriter struct {
-	w   io.Writer
-	buf *bytes.Buffer
-}
-
-func newJSONOutputWriter(w io.Writer) *jsonOutputWriter {
-	return &jsonOutputWriter{
-		w:   w,
-		buf: &bytes.Buffer{},
-	}
-}
-
-func (w *jsonOutputWriter) writeMessage(
+func writeMessage(
+	w io.Writer,
 	topic string,
 	time uint64,
 	data []byte,
 ) error {
-	w.buf.Reset()
-	_, err := w.buf.Write([]byte(`{"topic": "`))
+	_, err := w.Write([]byte(`{"topic": "`))
 	if err != nil {
 		return err
 	}
-	_, err = w.buf.WriteString(topic)
+	_, err = w.Write([]byte(topic))
 	if err != nil {
 		return err
 	}
-	_, err = w.buf.Write([]byte(`", "time": `))
+	_, err = w.Write([]byte(`", "time": `))
 	if err != nil {
 		return err
 	}
-	_, err = w.buf.WriteString(fmt.Sprintf("%d", time))
+	_, err = w.Write([]byte(fmt.Sprintf("%d", time)))
 	if err != nil {
 		return err
 	}
-	_, err = w.buf.Write([]byte(`, "data": `))
+	_, err = w.Write([]byte(`, "data": `))
 	if err != nil {
 		return err
 	}
-	_, err = w.buf.Write(data)
+	_, err = w.Write(data)
 	if err != nil {
 		return err
 	}
-	_, err = w.buf.Write([]byte("}\n"))
-	if err != nil {
-		return err
-	}
-	_, err = w.w.Write(w.buf.Bytes())
+	_, err = w.Write([]byte("}\n"))
 	if err != nil {
 		return err
 	}
@@ -103,9 +87,8 @@ func simpleMessageHandler(conn *rosbag.Connection, msg *rosbag.Message) error {
 
 type messageHandler func(*rosbag.Connection, *rosbag.Message) error
 
-func jsonMessageHandler(f io.Writer) messageHandler {
+func jsonMessageHandler(w io.Writer) messageHandler {
 	transcoders := make(map[uint32]*ros1msg.JSONTranscoder)
-	jsonWriter := newJSONOutputWriter(f)
 	rosdata := &bytes.Reader{}
 	jsondata := &bytes.Buffer{}
 	var err error
@@ -124,7 +107,8 @@ func jsonMessageHandler(f io.Writer) messageHandler {
 		if err != nil {
 			return err
 		}
-		err = jsonWriter.writeMessage(
+		err = writeMessage(
+			w,
 			conn.Topic,
 			msg.Time,
 			jsondata.Bytes(),
