@@ -1,11 +1,14 @@
 test:
-	$(MAKE) -C cli/r0sbag test
-	$(MAKE) -C rosbag test
+	go test -cover ./...
+
+clean:
+	go clean -testcache
+
+tidy:
+	go mod tidy
+
+fmt:
+	go fmt ./...
 
 lint:
-	$(MAKE) -C cli/r0sbag lint
-	$(MAKE) -C rosbag lint
-
-
-install-cli:
-	$(MAKE) -C cli/r0sbag install
+	golangci-lint run
