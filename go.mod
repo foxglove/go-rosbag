@@ -1,9 +1,8 @@
-module github.com/foxglove/go-rosbag/rosbag
+module github.com/foxglove/go-rosbag
 
 go 1.21
 
 require (
-	github.com/alecthomas/participle/v2 v2.0.0
 	github.com/pierrec/lz4/v4 v4.1.18
 	github.com/stretchr/testify v1.8.4
 )
