@@ -258,11 +258,11 @@ func (t *JSONTranscoder) int64(w io.Writer, r io.Reader) error {
 }
 
 func (t *JSONTranscoder) uint64(w io.Writer, r io.Reader) error {
-	if _, err := io.ReadFull(r, t.buf[:4]); err != nil {
+	if _, err := io.ReadFull(r, t.buf[:8]); err != nil {
 		return fmt.Errorf("failed to read uint64: %w", err)
 	}
 	x := binary.LittleEndian.Uint64(t.buf[:8])
-	t.formattedNumber = strconv.AppendInt(t.formattedNumber, int64(x), 10)
+	t.formattedNumber = strconv.AppendUint(t.formattedNumber, x, 10)
 	if _, err := w.Write(t.formattedNumber); err != nil {
 		return fmt.Errorf("failed to write formatted uint64: %w", err)
 	}
