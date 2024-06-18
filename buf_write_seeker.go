@@ -1,5 +1,9 @@
 package rosbag
 
+import (
+	"io"
+)
+
 type bufWriteSeeker struct {
 	buf []byte
 	pos int
@@ -24,11 +28,11 @@ func (b *bufWriteSeeker) Write(p []byte) (int, error) {
 // Seek implements io.Seeker.
 func (b *bufWriteSeeker) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
-	case 0:
+	case io.SeekStart:
 		b.pos = int(offset)
-	case 1:
+	case io.SeekCurrent:
 		b.pos += int(offset)
-	case 2:
+	case io.SeekEnd:
 		b.pos = len(b.buf) + int(offset)
 	}
 	return int64(b.pos), nil
