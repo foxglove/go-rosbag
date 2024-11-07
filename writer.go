@@ -291,7 +291,7 @@ func (b *Writer) writeIndexData(indexData IndexData) error {
 	data := make([]byte, 12*len(indexData.Data))
 	offset := 0
 	for _, entry := range indexData.Data {
-		offset += putU64(data[offset:], entry.Time)
+		offset += putRostime(data[offset:], entry.Time)
 		offset += putU32(data[offset:], entry.Offset)
 	}
 
