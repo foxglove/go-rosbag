@@ -96,8 +96,8 @@ type ConnectionHeader struct {
 // to be decodable using the message_definition field of the connection record
 // associated with "connID".
 type Message struct {
-	Conn uint32 // ID for connection on which emssage arrived
-	Time uint64 // time at which the message was received
+	Conn uint32 // ID for connection on which message arrived
+	Time uint64 // time at which the message was received in nanoseconds
 	Data []byte // serialized message data in ROS serialization format
 }
 
@@ -107,8 +107,8 @@ type Message struct {
 // offset.
 type ChunkInfo struct {
 	ChunkPos  uint64            // offset of the chunk record
-	StartTime uint64            // timestamp of earliest message in the chunk
-	EndTime   uint64            // timestamp of latest message in the chunk
+	StartTime uint64            // timestamp of earliest message in the chunk in nanoseconds
+	EndTime   uint64            // timestamp of latest message in the chunk in nanoseconds
 	Count     uint32            // number of connections in the chunk
 	Data      map[uint32]uint32 // map of connID to message count
 }
@@ -118,11 +118,11 @@ type ChunkInfo struct {
 type IndexData struct {
 	Conn  uint32              // connection ID
 	Count uint32              // number of messages on *conn* in the preceding chunk
-	Data  []MessageIndexEntry // *count* repeating occurrences of timestamps (uint64) and message offsets (uint32)
+	Data  []MessageIndexEntry // *count* repeating occurrences of timestamps and message offsets
 }
 
 // MessageIndexEntry is an entry in the data section of an IndexData record.
 type MessageIndexEntry struct {
-	Time   uint64 // time at which the message was recorded
-	Offset uint32 // offset of the message, relative to the start of the chunk data that contains it
+	Time   uint64 // time at which the message was recorded in nanoseconds
+	Offset uint32 // byte offset of the message within the uncompressed chunk data
 }

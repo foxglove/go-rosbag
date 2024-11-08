@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testBagIsReadable(t *testing.T, rs io.Reader) {
@@ -130,6 +131,35 @@ func TestWriter(t *testing.T) {
 			assert.Equal(t, len(c.inputConnections), len(info.Connections))
 			assert.Equal(t, len(c.inputMessages), int(info.MessageCount))
 		})
+	}
+}
+
+func TestCorrectMessageIndexes(t *testing.T) {
+	buf := &bytes.Buffer{}
+	timestamp := uint64(10_000_000_020)
+	writer, err := NewWriter(buf)
+	require.NoError(t, err)
+	require.NoError(t, writer.WriteConnection(connection(13, "/chat")))
+	require.NoError(t, writer.WriteMessage(message(13, timestamp, []byte("hello"))))
+	require.NoError(t, writer.Close())
+
+	reader := bytes.NewBuffer(buf.Bytes())
+	_, err = reader.Read(make([]byte, len(Magic)))
+	require.NoError(t, err)
+
+	for {
+		op, record, err := ReadRecord(reader)
+		require.NoError(t, err)
+		if op != OpIndexData {
+			continue
+		}
+		index, err := ParseIndexData(record)
+		require.NoError(t, err)
+		assert.Equal(t, index.Conn, uint32(13))
+		require.Len(t, index.Data, 1)
+		entry := index.Data[0]
+		require.Equal(t, entry.Time, timestamp)
+		break
 	}
 }
 
