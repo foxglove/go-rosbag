@@ -94,6 +94,7 @@ func (it *linearIterator) Next() (*Connection, *Message, error) {
 				continue
 			case CompressionBZ2:
 				it.reader.Reset(bzip2.NewReader(bytes.NewReader(chunkData)))
+				it.inChunk = true
 			default:
 				return nil, nil, ErrUnsupportedCompression{string(compression)}
 			}
